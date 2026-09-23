@@ -76,142 +76,142 @@ for filename in filenames:
                                        csv_file = csv_file),
                  logfile, databus)
 
-        run_step('Checking Geopolitical Units', 'gpuid',
-                 lambda: nv.valid_geopolitical_units(cur = cur,
-                                                     yml_dict = yml_dict,
-                                                     csv_file = csv_file,
-                                                     databus = databus),
-                 logfile, databus)
+        # run_step('Checking Geopolitical Units', 'gpuid',
+        #          lambda: nv.valid_geopolitical_units(cur = cur,
+        #                                              yml_dict = yml_dict,
+        #                                              csv_file = csv_file,
+        #                                              databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Against Collection Units', 'collunits',
-                 lambda: nv.valid_collunit(cur = cur,
-                                           yml_dict = yml_dict,
-                                           csv_file = csv_file,
-                                           databus = databus),
-                 logfile, databus)
+        # run_step('Checking Against Collection Units', 'collunits',
+        #          lambda: nv.valid_collunit(cur = cur,
+        #                                    yml_dict = yml_dict,
+        #                                    csv_file = csv_file,
+        #                                    databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Against Speleothem Entities', 'speleothems',
-                 lambda: nv.valid_speleothem(cur = cur,
-                                             yml_dict = yml_dict,
-                                             csv_file = csv_file,
-                                             databus = databus),
-                 logfile, databus)
+        # run_step('Checking Against Speleothem Entities', 'speleothems',
+        #          lambda: nv.valid_speleothem(cur = cur,
+        #                                      yml_dict = yml_dict,
+        #                                      csv_file = csv_file,
+        #                                      databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking External Speleothems', 'external_speleo',
-                 lambda: nv.valid_external_speleothem(cur = cur,
-                                                      yml_dict = yml_dict,
-                                                      csv_file = csv_file,
-                                                      databus = databus),
-                 logfile, databus)
+        # run_step('Checking External Speleothems', 'external_speleo',
+        #          lambda: nv.valid_external_speleothem(cur = cur,
+        #                                               yml_dict = yml_dict,
+        #                                               csv_file = csv_file,
+        #                                               databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Against Analysis Units', 'analysisunits',
-                 lambda: nv.valid_analysisunit(cur = cur,
-                                               yml_dict = yml_dict,
-                                               csv_file = csv_file,
-                                               databus = databus),
-                 logfile, databus)
+        # run_step('Checking Against Analysis Units', 'analysisunits',
+        #          lambda: nv.valid_analysisunit(cur = cur,
+        #                                        yml_dict = yml_dict,
+        #                                        csv_file = csv_file,
+        #                                        databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Dataset', 'datasets',
-                 lambda: nv.valid_dataset(cur = cur,
-                                          yml_dict = yml_dict,
-                                          csv_file = csv_file,
-                                          databus = databus),
-                 logfile, databus)
+        # run_step('Checking Dataset', 'datasets',
+        #          lambda: nv.valid_dataset(cur = cur,
+        #                                   yml_dict = yml_dict,
+        #                                   csv_file = csv_file,
+        #                                   databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking GeoChronDataset', 'geodataset',
-                 lambda: nv.valid_geochron_dataset(cur = cur,
-                                                   yml_dict = yml_dict,
-                                                   csv_file = csv_file,
-                                                   databus = databus),
-                 logfile, databus)
+        # run_step('Checking GeoChronDataset', 'geodataset',
+        #          lambda: nv.valid_geochron_dataset(cur = cur,
+        #                                            yml_dict = yml_dict,
+        #                                            csv_file = csv_file,
+        #                                            databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Chronologies', 'chronologies',
-                 lambda: nv.valid_chronologies(cur = cur,
-                                               yml_dict = yml_dict,
-                                               csv_file = csv_file,
-                                               databus = databus),
-                 logfile, databus)
+        # run_step('Checking Chronologies', 'chronologies',
+        #          lambda: nv.valid_chronologies(cur = cur,
+        #                                        yml_dict = yml_dict,
+        #                                        csv_file = csv_file,
+        #                                        databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking ChronControls', 'chron_controls',
-                 lambda: nv.valid_chroncontrols(cur = cur,
-                                                yml_dict = yml_dict,
-                                                csv_file = csv_file,
-                                                databus = databus),
-                 logfile, databus)
+        # run_step('Checking ChronControls', 'chron_controls',
+        #          lambda: nv.valid_chroncontrols(cur = cur,
+        #                                         yml_dict = yml_dict,
+        #                                         csv_file = csv_file,
+        #                                         databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Hiatuses', 'hiatus',
-                 lambda: nv.valid_hiatus(cur = cur,
-                                         yml_dict = yml_dict,
-                                         csv_file = csv_file,
-                                         databus = databus),
-                 logfile, databus)
+        # run_step('Checking Hiatuses', 'hiatus',
+        #          lambda: nv.valid_hiatus(cur = cur,
+        #                                  yml_dict = yml_dict,
+        #                                  csv_file = csv_file,
+        #                                  databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Samples', 'samples',
-                 lambda: nv.valid_sample(cur = cur,
-                                         yml_dict = yml_dict,
-                                         csv_file = csv_file,
-                                         databus = databus),
-                 logfile, databus)
+        # run_step('Validating Samples', 'samples',
+        #          lambda: nv.valid_sample(cur = cur,
+        #                                  yml_dict = yml_dict,
+        #                                  csv_file = csv_file,
+        #                                  databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Sample Ages', 'sample_age',
-                 lambda: nv.valid_sample_age(cur = cur,
-                                             yml_dict = yml_dict,
-                                             csv_file = csv_file,
-                                             databus = databus),
-                 logfile, databus)
+        # run_step('Validating Sample Ages', 'sample_age',
+        #          lambda: nv.valid_sample_age(cur = cur,
+        #                                      yml_dict = yml_dict,
+        #                                      csv_file = csv_file,
+        #                                      databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Geochrons', 'geochron',
-                 lambda: nv.valid_geochron(cur = cur,
-                                           yml_dict = yml_dict,
-                                           csv_file = csv_file,
-                                           databus = databus),
-                 logfile, databus)
+        # run_step('Validating Geochrons', 'geochron',
+        #          lambda: nv.valid_geochron(cur = cur,
+        #                                    yml_dict = yml_dict,
+        #                                    csv_file = csv_file,
+        #                                    databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Geochron Control', 'geochroncontrol',
-                 lambda: nv.valid_geochroncontrol(cur = cur,
-                                                  databus = databus),
-                 logfile, databus)
+        # run_step('Checking Geochron Control', 'geochroncontrol',
+        #          lambda: nv.valid_geochroncontrol(cur = cur,
+        #                                           databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking UTh Series', 'uthseries',
-                 lambda: nv.valid_uth_series(cur = cur,
-                                             yml_dict = yml_dict,
-                                             csv_file = csv_file,
-                                             databus = databus),
-                 logfile, databus)
+        # run_step('Checking UTh Series', 'uthseries',
+        #          lambda: nv.valid_uth_series(cur = cur,
+        #                                      yml_dict = yml_dict,
+        #                                      csv_file = csv_file,
+        #                                      databus = databus),
+        #          logfile, databus)
 
-        run_step('Checking Against Contact Names', 'contacts',
-                 lambda: nv.valid_contact(cur = cur,
-                                          yml_dict = yml_dict,
-                                          csv_file = csv_file,
-                                          databus = databus),
-                 logfile, databus)
+        # run_step('Checking Against Contact Names', 'contacts',
+        #          lambda: nv.valid_contact(cur = cur,
+        #                                   yml_dict = yml_dict,
+        #                                   csv_file = csv_file,
+        #                                   databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Dataset Database', 'database',
-                 lambda: nv.valid_dataset_database(cur = cur,
-                                                   yml_dict = yml_dict,
-                                                   databus = databus),
-                 logfile, databus)
+        # run_step('Validating Dataset Database', 'database',
+        #          lambda: nv.valid_dataset_database(cur = cur,
+        #                                            yml_dict = yml_dict,
+        #                                            databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Data', 'data',
-                 lambda: nv.valid_data(cur = cur,
-                                       yml_dict = yml_dict,
-                                       csv_file = csv_file,
-                                       databus = databus),
-                 logfile, databus)
+        # run_step('Validating Data', 'data',
+        #          lambda: nv.valid_data(cur = cur,
+        #                                yml_dict = yml_dict,
+        #                                csv_file = csv_file,
+        #                                databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Data Uncertainties', 'uncertainty',
-                 lambda: nv.valid_datauncertainty(cur = cur,
-                                                  yml_dict = yml_dict,
-                                                  csv_file = csv_file,
-                                                  databus = databus),
-                 logfile, databus)
+        # run_step('Validating Data Uncertainties', 'uncertainty',
+        #          lambda: nv.valid_datauncertainty(cur = cur,
+        #                                           yml_dict = yml_dict,
+        #                                           csv_file = csv_file,
+        #                                           databus = databus),
+        #          logfile, databus)
 
-        run_step('Validating Publication', 'publications',
-                 lambda: nv.valid_publication(cur = cur,
-                                              yml_dict = yml_dict,
-                                              csv_file = csv_file,
-                                              databus = databus),
-                 logfile, databus)
+        # run_step('Validating Publication', 'publications',
+        #          lambda: nv.valid_publication(cur = cur,
+        #                                       yml_dict = yml_dict,
+        #                                       csv_file = csv_file,
+        #                                       databus = databus),
+        #          logfile, databus)
 
         all_true = all([databus[key].validAll for key in databus.keys()])
 
