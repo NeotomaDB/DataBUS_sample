@@ -1,258 +1,254 @@
-"""_Validate SISAL csv Files_
-   Assumes there is a `data` folder from which the python script is run.
-   The script obtains all `csv` files in ./data and then reads through
-   each of them, validating each field to ensure they are acceptable for
-   valid upload.
-
-   Since DataBUS 2.0.0 each `valid_*` function also performs its own insert
-   when it is handed the accumulated `databus` dict, so a validation-only run
-   ends in `conn.rollback()`. Pass `--upload True` to keep the records.
-"""
-from datetime import datetime
 import os
-from pathlib import Path
 import json
 import psycopg2
+from datetime import datetime
 from dotenv import load_dotenv
 import DataBUS.neotomaValidator as nv
 import DataBUS.neotomaHelpers as nh
 from DataBUS.neotomaHelpers.logging_dict import logging_response
-"""
-To run:
-uv run python src/template_validate.py --template src/templates/template.yml
 
-To validate and then commit the records:
-uv run python src/template_validate.py --template src/templates/template.yml --upload True
-"""
-args = nh.parse_arguments()
-upload = args.get('upload', False)
 load_dotenv()
-data = json.loads(os.getenv('PGDB_TANK'))
+connection = json.loads(os.getenv('PGDB_TANK'))
 
-conn = psycopg2.connect(**data, connect_timeout = 5)
+# ── Configure your data pairs here ────────────────────────────────────────────
+# Uncomment the pair you want to test:
+
+data = {'csv_templates': ['data/CZ_makro_short.csv'],
+        'yml_templates': ['src/templates/template.yml']}
+
+# data = {'csv_templates': ['data/Pollen_Nick/LV2_pollen_combined_wide.csv'],
+#         'yml_templates': ['data/Pollen_Nick/wide_template.yaml']}
+
+
+conn = psycopg2.connect(**connection, connect_timeout=5)
 cur = conn.cursor()
-directory = Path(args['data'])
-filenames = directory.glob("*.csv")
-filenames = [f for f in filenames if os.path.basename(f) != "references_entities.csv"]
-valid_logs = Path('data/validation_logs')
-valid_logs_wrong = Path('data/validation_logs/not_validated/')
-valid_logs.mkdir(parents = True, exist_ok = True)
-valid_logs_wrong.mkdir(parents = True, exist_ok = True)
 
-
-def run_step(name, key, fn, logfile, databus):
-    """Run one validation step in its own savepoint and log the Response.
-
-    `fn` must be a zero-argument callable. `nh.safe_step` rolls back to the
-    savepoint on error so a single failing step no longer aborts the whole
-    transaction and poisons every step after it.
-    """
-    logfile.append(f'\n === {name} ===')
-    result = nh.safe_step(key, fn, logfile, conn)
-    if result is not None:
-        databus[key] = result
-        logging_response(result, logfile)
-
-
-for filename in filenames:
-    print(filename)
+for filename, yml in zip(data['csv_templates'], data['yml_templates']):
+    print(f"Filename: {filename}")
     conn.rollback()
     logfile = []
     databus = dict()
+
+    yml_dict = nh.template_to_dict(yml)
+
+    if filename.endswith(".xlsx"):
+        csv_file = nh.read_xlsx(filename, num_headers=yml_dict.get("headers", 1))
+    else:
+        csv_file = nh.read_csv(filename)
+
     hashcheck = nh.hash_file(filename)
-    filecheck = nh.check_file(filename, validation_files = f'{valid_logs}/')
+    filecheck = nh.check_file(filename, validation_files="data/")
+
     logfile = logfile + hashcheck['message'] + filecheck['message']
-    logfile.append(f"\nNew validation started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    if hashcheck['pass'] and filecheck['pass']:
-        print("  - File is correct and hasn't changed since last validation.")
-        continue
+    logfile.append(f"\nNew Upload started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    yml_dict = nh.template_to_dict(temp_file=args['template'])
-    csv_file = nh.read_csv(filename)
+    if hashcheck['pass'] is False and filecheck['pass'] is False:
+        logfile.append("File must be properly validated before it can be uploaded.")
+        hashcheck = False
+    else:
+        hashcheck = True
+
     try:
-        run_step('Validating Sites', 'sites',
-                 lambda: nv.valid_site(cur = cur,
-                                       yml_dict = yml_dict,
-                                       csv_file = csv_file),
-                 logfile, databus)
+        logfile.append("=== Sites ===")
+        result = nh.safe_step("sites", lambda: nv.valid_site(
+            cur=cur, yml_dict=yml_dict, csv_file=csv_file), logfile, conn)
+        if result is not None:
+            databus['sites'] = result
+            logfile = logging_response(databus['sites'], logfile)
+        print(databus['sites'])
+        # logfile.append("=== GPUs ===")
+        # result = nh.safe_step("gpus", lambda: nv.valid_geopolitical_units(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['gpuid'] = result
+        #     logfile = logging_response(databus['gpuid'], logfile)
 
-        # run_step('Checking Geopolitical Units', 'gpuid',
-        #          lambda: nv.valid_geopolitical_units(cur = cur,
-        #                                              yml_dict = yml_dict,
-        #                                              csv_file = csv_file,
-        #                                              databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== CUs ===")
+        # result = nh.safe_step("collunits", lambda: nv.valid_collunit(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['collunits'] = result
+        #     logfile = logging_response(databus['collunits'], logfile)
 
-        # run_step('Checking Against Collection Units', 'collunits',
-        #          lambda: nv.valid_collunit(cur = cur,
-        #                                    yml_dict = yml_dict,
-        #                                    csv_file = csv_file,
-        #                                    databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Speleothems ===")
+        # result = nh.safe_step("speleothems", lambda: nv.valid_speleothem(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['speleothems'] = result
+        #     logfile = logging_response(databus['speleothems'], logfile)
 
-        # run_step('Checking Against Speleothem Entities', 'speleothems',
-        #          lambda: nv.valid_speleothem(cur = cur,
-        #                                      yml_dict = yml_dict,
-        #                                      csv_file = csv_file,
-        #                                      databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== External Speleothems ===")
+        # result = nh.safe_step("external_speleo", lambda: nv.valid_external_speleothem(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['external_speleo'] = result
+        #     logfile = logging_response(databus['external_speleo'], logfile)
 
-        # run_step('Checking External Speleothems', 'external_speleo',
-        #          lambda: nv.valid_external_speleothem(cur = cur,
-        #                                               yml_dict = yml_dict,
-        #                                               csv_file = csv_file,
-        #                                               databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== AUs ===")
+        # result = nh.safe_step("analysisunits", lambda: nv.valid_analysisunit(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['analysisunits'] = result
+        #     logfile = logging_response(databus['analysisunits'], logfile)
 
-        # run_step('Checking Against Analysis Units', 'analysisunits',
-        #          lambda: nv.valid_analysisunit(cur = cur,
-        #                                        yml_dict = yml_dict,
-        #                                        csv_file = csv_file,
-        #                                        databus = databus),
-        #          logfile, databus)
+        # if "210pb" in filename.lower():
+        #     logfile.append("=== Pb Models ===")
+        #     result = nh.safe_step("pbmodel", lambda: nv.valid_pbmodel(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['pbmodel'] = result
+        #         logfile = logging_response(databus['pbmodel'], logfile)
 
-        # run_step('Checking Dataset', 'datasets',
-        #          lambda: nv.valid_dataset(cur = cur,
-        #                                   yml_dict = yml_dict,
-        #                                   csv_file = csv_file,
-        #                                   databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Datasets ===")
+        # result = nh.safe_step("datasets", lambda: nv.valid_dataset(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['datasets'] = result
+        #     logfile = logging_response(databus['datasets'], logfile)
 
-        # run_step('Checking GeoChronDataset', 'geodataset',
-        #          lambda: nv.valid_geochron_dataset(cur = cur,
-        #                                            yml_dict = yml_dict,
-        #                                            csv_file = csv_file,
-        #                                            databus = databus),
-        #          logfile, databus)
+        # # only for SISAL and 210Pb
+        # if "sisal" in filename.lower() or "210pb" in filename.lower():
+        #     logfile.append("=== GeoDS ===")
+        #     result = nh.safe_step("geodataset", lambda: nv.valid_geochron_dataset(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['geodataset'] = result
+        #         logfile = logging_response(databus['geodataset'], logfile)
 
-        # run_step('Checking Chronologies', 'chronologies',
-        #          lambda: nv.valid_chronologies(cur = cur,
-        #                                        yml_dict = yml_dict,
-        #                                        csv_file = csv_file,
-        #                                        databus = databus),
-        #          logfile, databus)
+        # if "node" not in filename.lower():
+        #     logfile.append("=== Chronologies ===")
+        #     result = nh.safe_step("chronologies", lambda: nv.valid_chronologies(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['chronologies'] = result
+        #         logfile = logging_response(databus['chronologies'], logfile)
 
-        # run_step('Checking ChronControls', 'chron_controls',
-        #          lambda: nv.valid_chroncontrols(cur = cur,
-        #                                         yml_dict = yml_dict,
-        #                                         csv_file = csv_file,
-        #                                         databus = databus),
-        #          logfile, databus)
+        #     logfile.append("=== Chron Controls ===")
+        #     result = nh.safe_step("chron_controls", lambda: nv.valid_chroncontrols(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['chron_controls'] = result
+        #         logfile = logging_response(databus['chron_controls'], logfile)
+        
+        # if "sisal" in filename.lower():
+        #     logfile.append("=== Hiatus ===")
+        #     result = nh.safe_step("hiatus", lambda: nv.valid_hiatus(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['hiatus'] = result
+        #         logfile = logging_response(databus['hiatus'], logfile)
 
-        # run_step('Checking Hiatuses', 'hiatus',
-        #          lambda: nv.valid_hiatus(cur = cur,
-        #                                  yml_dict = yml_dict,
-        #                                  csv_file = csv_file,
-        #                                  databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Samples ===")
+        # result = nh.safe_step("samples", lambda: nv.valid_sample(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['samples'] = result
+        #     logfile = logging_response(databus['samples'], logfile)
 
-        # run_step('Validating Samples', 'samples',
-        #          lambda: nv.valid_sample(cur = cur,
-        #                                  yml_dict = yml_dict,
-        #                                  csv_file = csv_file,
-        #                                  databus = databus),
-        #          logfile, databus)
+        # if "node" not in filename.lower():
+        #     logfile.append("=== Sample Ages ===")
+        #     result = nh.safe_step("sample_age", lambda: nv.valid_sample_age(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['sample_age'] = result
+        #         logfile = logging_response(databus['sample_age'], logfile)
 
-        # run_step('Validating Sample Ages', 'sample_age',
-        #          lambda: nv.valid_sample_age(cur = cur,
-        #                                      yml_dict = yml_dict,
-        #                                      csv_file = csv_file,
-        #                                      databus = databus),
-        #          logfile, databus)
+        #     logfile.append("=== Geochron ===")
+        #     result = nh.safe_step("geochron", lambda: nv.valid_geochron(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['geochron'] = result
+        #         logfile = logging_response(databus['geochron'], logfile)
 
-        # run_step('Validating Geochrons', 'geochron',
-        #          lambda: nv.valid_geochron(cur = cur,
-        #                                    yml_dict = yml_dict,
-        #                                    csv_file = csv_file,
-        #                                    databus = databus),
-        #          logfile, databus)
+        #     logfile.append("=== Geochron Control ===")
+        #     result = nh.safe_step("geochroncontrol", lambda: nv.valid_geochroncontrol(
+        #         cur=cur, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['geochroncontrol'] = result
+        #         logfile = logging_response(databus['geochroncontrol'], logfile)
+        
+        # if "210pb" in filename.lower():
+        #     logfile.append("=== UTh Series ===")
+        #     result = nh.safe_step("uthseries", lambda: nv.valid_uth_series(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['uthseries'] = result
+        #         logfile = logging_response(databus['uthseries'], logfile)
 
-        # run_step('Checking Geochron Control', 'geochroncontrol',
-        #          lambda: nv.valid_geochroncontrol(cur = cur,
-        #                                           databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Contacts ===")
+        # result = nh.safe_step("contacts", lambda: nv.valid_contact(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['contacts'] = result
+        #     logfile = logging_response(databus['contacts'], logfile)
 
-        # run_step('Checking UTh Series', 'uthseries',
-        #          lambda: nv.valid_uth_series(cur = cur,
-        #                                      yml_dict = yml_dict,
-        #                                      csv_file = csv_file,
-        #                                      databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Database ===")
+        # result = nh.safe_step("database", lambda: nv.valid_dataset_database(
+        #     cur=cur, yml_dict=yml_dict, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['database'] = result
+        #     logfile = logging_response(databus['database'], logfile)
 
-        # run_step('Checking Against Contact Names', 'contacts',
-        #          lambda: nv.valid_contact(cur = cur,
-        #                                   yml_dict = yml_dict,
-        #                                   csv_file = csv_file,
-        #                                   databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Data ===")
+        # result = nh.safe_step("data", lambda: nv.valid_data(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['data'] = result
+        #     logfile = logging_response(databus['data'], logfile)
 
-        # run_step('Validating Dataset Database', 'database',
-        #          lambda: nv.valid_dataset_database(cur = cur,
-        #                                            yml_dict = yml_dict,
-        #                                            databus = databus),
-        #          logfile, databus)
+        # if "210pb" in filename.lower():
+        #     logfile.append("=== Data Uncertainty ===")
+        #     result = nh.safe_step("uncertainty", lambda: nv.valid_datauncertainty(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['uncertainty'] = result
+        #         logfile = logging_response(databus['uncertainty'], logfile)
 
-        # run_step('Validating Data', 'data',
-        #          lambda: nv.valid_data(cur = cur,
-        #                                yml_dict = yml_dict,
-        #                                csv_file = csv_file,
-        #                                databus = databus),
-        #          logfile, databus)
+        # # ── aeDNA-specific steps ──────────────────────────────────────────
+        # if "aeDNA" in filename.lower():
+        #     logfile.append("=== Sequences & aeDNA Models ===")
+        #     result = nh.safe_step("sequences", lambda: nv.valid_sequence(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['sequences'] = result
+        #         logfile = logging_response(databus['sequences'], logfile)
 
-        # run_step('Validating Data Uncertainties', 'uncertainty',
-        #          lambda: nv.valid_datauncertainty(cur = cur,
-        #                                           yml_dict = yml_dict,
-        #                                           csv_file = csv_file,
-        #                                           databus = databus),
-        #          logfile, databus)
+        #     logfile.append("=== Projects ===")
+        #     result = nh.safe_step("project", lambda: nv.valid_project(
+        #         cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        #     if result is not None:
+        #         databus['project'] = result
+        #         logfile = logging_response(databus['project'], logfile)
 
-        # run_step('Validating Publication', 'publications',
-        #          lambda: nv.valid_publication(cur = cur,
-        #                                       yml_dict = yml_dict,
-        #                                       csv_file = csv_file,
-        #                                       databus = databus),
-        #          logfile, databus)
+        # logfile.append("=== Publications ===")
+        # result = nh.safe_step("publications", lambda: nv.valid_publication(
+        #     cur=cur, yml_dict=yml_dict, csv_file=csv_file, databus=databus), logfile, conn)
+        # if result is not None:
+        #     databus['publications'] = result
+        #     logfile = logging_response(databus['publications'], logfile)
 
-        all_true = all([databus[key].validAll for key in databus.keys()])
-
-        if upload and all_true:
-            databus['finalize'] = nv.insert_final(cur, databus = databus)
-            conn.commit()
-            logfile.append('\nData has been successfully uploaded to the database.')
+        all_true = all([databus[key].validAll for key in databus])
+        all_true = all_true and hashcheck
+        upload = False
+        if upload:
+            if all_true:
+                databus['finalize'] = nv.insert_final(cur, databus=databus)
+                conn.rollback()
+                logfile.append("Data has been successfully uploaded to the database.")
+            else:
+                conn.rollback()
+                logfile.append("Data must be fully validated before it can be uploaded to the database.")
         else:
-            conn.rollback()
-            if upload:
-                logfile.append('\nData must be fully validated before it can be uploaded.')
-            elif all_true:
-                logfile.append('\nData has been fully validated and is ready for upload.')
-
-        not_validated_files = "data/not_validated_files"
-        if all_true is False:
-            print(f"{filename} cannot be validated.\nMoved {filename} to the 'not_validated_files' folder.")
-            os.makedirs(not_validated_files, exist_ok=True)
-            uploaded_path = os.path.join(not_validated_files, os.path.basename(filename))
-            os.replace(filename, uploaded_path)
-            modified_filename = f'{filename}'.replace('data/', 'data/validation_logs/not_validated/')
-            modified_filename = Path(modified_filename + '.valid.log')
-        else:
-            modified_filename = f'{filename}'.replace('data/', 'data/validation_logs/')
-            modified_filename = Path(modified_filename + '.valid.log')
-
-        with modified_filename.open(mode = 'w', encoding = "utf-8") as writer:
-            for i in logfile:
-                writer.write(i)
-                writer.write('\n')
+            if all_true:
+                conn.rollback()
+                logfile.append("Data has been fully validated and is ready for upload.")
+            else:
+                conn.rollback()
+                logfile.append("Data has not passed validation. Please review the log messages for details.")
     except Exception as e:
         conn.rollback()
-        logfile.append(f"✗ File validation failed: {e}")
-        not_validated_files = "data/not_validated_files"
-        os.makedirs(not_validated_files, exist_ok=True)
-        uploaded_path = os.path.join(not_validated_files, os.path.basename(filename))
-        os.replace(filename, uploaded_path)
-        os.makedirs('data/validation_logs/not_validated/', exist_ok=True)
-        modified_filename = f'{filename}'.replace('data/', 'data/validation_logs/not_validated/')
-        modified_filename = Path(modified_filename + '.valid.log')
-        with open(modified_filename, 'w', encoding = "utf-8") as writer:
-            for i in logfile:
-                writer.write(i)
-                writer.write('\n')
+        logfile.append(f"An error occurred during validation: {str(e)}")
+    with open(filename + '.valid.log', 'w', encoding="utf-8") as writer:
+        for i in logfile:
+            writer.write(i)
+            writer.write('\n')
